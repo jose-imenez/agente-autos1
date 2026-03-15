@@ -1,0 +1,1 @@
+from .analizador_interface import IAnalizadorService

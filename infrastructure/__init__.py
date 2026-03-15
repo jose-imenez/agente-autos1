@@ -1,0 +1,1 @@
+from .services.analizador_service import AnalizadorService
