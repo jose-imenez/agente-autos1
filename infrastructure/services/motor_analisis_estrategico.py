@@ -1597,47 +1597,176 @@ Elige la opción que mejor se adapte a tu contexto y preferencias.
         }
 
     def _generar_soluciones_autos(self, texto: str) -> list[Solucion]:
-        """Genera soluciones para autos y vehículos."""
+        """Genera soluciones para autos y vehículos usando web_client."""
+        from infrastructure.web_client import get_web_client
+        
         info_auto = self._detectar_info_auto(texto)
         
         if not info_auto["tiene_auto"]:
             return self._generar_soluciones_autos_generales(texto)
         
-        # PRIMERO: Buscar en la web (SerpAPI)
+        # Usar web_client para obtener datos en tiempo real
         try:
-            busqueda_service = get_busqueda_web_service()
-            resultados = busqueda_service.buscar_informacion_auto(
+            web_client = get_web_client()
+            resultado = web_client.buscar_precios_auto(
                 marca=info_auto["marca"] or "",
                 modelo=info_auto["modelo"] or "",
-                anio=info_auto["anio"],
-                tipo_busqueda=info_auto["tipo_busqueda"]
+                anio=info_auto["anio"]
             )
             
-            if resultados.get("resultados"):
-                return self._crear_soluciones_desde_busqueda(
-                    texto, info_auto, resultados
-                )
+            if resultado and (resultado.get("precios_nuevos") or resultado.get("precios_usados")):
+                return self._crear_soluciones_desde_web(texto, info_auto, resultado)
         except Exception as e:
             from infrastructure.logging.structured_logging import app_logger
-            app_logger.warning("Búsqueda web falló para autos", error=str(e))
-        
-        # FALLBACK: Buscar en base de conocimientos local
-        try:
-            rag_service = get_rag_service()
-            contexto_rag = rag_service.buscar_informacion(
-                f"{info_auto.get('marca', '')} {info_auto.get('modelo', '')}",
-                top_k=3
-            )
-            
-            if contexto_rag:
-                return self._crear_soluciones_desde_rag(
-                    texto, info_auto, contexto_rag
-                )
-        except Exception as e:
-            from infrastructure.logging.structured_logging import app_logger
-            app_logger.warning("RAG falló para autos", error=str(e))
+            app_logger.warning("WebClient falló para autos", error=str(e))
         
         return self._generar_soluciones_autos_generales(texto)
+    
+    def _crear_soluciones_desde_web(
+        self, 
+        texto: str, 
+        info_auto: dict, 
+        resultado: dict
+    ) -> list[Solucion]:
+        """Crea soluciones desde datos web en tiempo real."""
+        marca = info_auto.get("marca", "").title()
+        modelo = info_auto.get("modelo", "").title()
+        anio = info_auto.get("anio", "2024")
+        
+        auto_nombre = f"{marca} {modelo} {anio}"
+        url_usada = resultado.get("busqueda", {}).get("url_usada", "https://serpapi.com/search")
+        
+        soluciones = []
+        
+        # Precios nuevos
+        precios_nuevos = resultado.get("precios_nuevos", [])
+        if precios_nuevos:
+            descripcion = f"📡 **Fuente:** {url_usada}\n\n"
+            descripcion += "💰 **Precios Nuevos:**\n"
+            for p in precios_nuevos[:3]:
+                descripcion += f"• {p.get('version', 'General')}: {p.get('precio', 'N/A')}\n"
+                descripcion += f"  🔗 {p.get('fuente', 'N/A')}\n"
+            
+            soluciones.append(Solucion(
+                titulo=f"💰 Precio de {auto_nombre}",
+                descripcion=descripcion,
+                ventajas=["Datos en tiempo real", "Múltiples fuentes"],
+                desventajas=["Verificar disponibilidad local"],
+                complejidad=ComplexityLevel.BAJA,
+                categoria=SolutionCategory.NEGOCIOS,
+                recomendacion="Visita el concesionario para cotización exacta.",
+                tecnologias=["SerpAPI", "Web"]
+            ))
+        
+        # Precios usados
+        precios_usados = resultado.get("precios_usados", [])
+        if precios_usados:
+            descripcion = "🔧 **Precios Usados:**\n"
+            for p in precios_usados[:3]:
+                descripcion += f"• Desde: {p.get('precio', 'N/A')}\n"
+                descripcion += f"  🔗 {p.get('fuente', 'N/A')}\n"
+            
+            soluciones.append(Solucion(
+                titulo=f"🔧 Precio usado de {auto_nombre}",
+                descripcion=descripcion,
+                ventajas=["Opciones económicas", "Múltiples fuentes"],
+                desventajas=["Verificar estado del vehículo"],
+                complejidad=ComplexityLevel.MEDIA,
+                categoria=SolutionCategory.NEGOCIOS,
+                recomendacion="Revisa el historial del auto antes de comprar.",
+                tecnologias=["Web"]
+            ))
+        
+        # Especificaciones
+        specs = resultado.get("especificaciones", {})
+        if specs and any(specs.values()):
+            descripcion = "⚙️ **Especificaciones:**\n"
+            if specs.get("motor"):
+                descripcion += f"• Motor: {specs['motor']}\n"
+            if specs.get("potencia"):
+                descripcion += f"• Potencia: {specs['potencia']}\n"
+            if specs.get("consumo"):
+                descripcion += f"• Consumo: {specs['consumo']}\n"
+            
+            soluciones.append(Solucion(
+                titulo=f"⚙️ Especificaciones {auto_nombre}",
+                descripcion=descripcion,
+                ventajas=["Información técnica verificada"],
+                desventajas=[],
+                complejidad=ComplexityLevel.BAJA,
+                categoria=SolutionCategory.PERSONAL,
+                recomendacion="Compara con otros modelos.",
+                tecnologias=["Web"]
+            ))
+        
+        if not soluciones:
+            soluciones.append(Solucion(
+                titulo=f"🚗 {auto_nombre}",
+                descripcion="Buscando información en tiempo real...",
+                ventajas=[],
+                desventajas=[],
+                complejidad=ComplexityLevel.BAJA,
+                categoria=SolutionCategory.PERSONAL,
+                recomendacion="Intenta más tarde.",
+                tecnologias=["Web"]
+            ))
+        
+        return soluciones
+        
+        # Precios usados
+        precios_usad = resultado.get("precios_usados", [])
+        if precios_usad:
+            descripcion = "🔧 **Precios Usados:**\n"
+            for p in precios_usad[:3]:
+                descripcion += f"• Desde: {p.get('precio', 'N/A')}\n"
+                descripcion += f"  📍 {p.get('fuente', 'N/A')}\n"
+            
+            soluciones.append(Solucion(
+                titulo=f"🔧 Precio usado de {auto_nombre}",
+                descripcion=descripcion,
+                ventajas=["Opciones más económicas", "Múltiples fuentes"],
+                desventajas=["Verificar estado del vehículo"],
+                complejidad=ComplexityLevel.MEDIA,
+                categoria=SolutionCategory.NEGOCIOS,
+                recomendacion="Revisa el historial del auto antes de comprar.",
+                tecnologias=["SerpAPI", "MercadoLibre", "Kavak"]
+            ))
+        
+        # Especificaciones
+        specs = resultado.get("especificaciones", {})
+        if specs and any(specs.values()):
+            descripcion = "⚙️ **Especificaciones:**\n"
+            if specs.get("motor"):
+                descripcion += f"• Motor: {specs['motor']}\n"
+            if specs.get("potencia"):
+                descripcion += f"• Potencia: {specs['potencia']}\n"
+            if specs.get("consumo"):
+                descripcion += f"• Consumo: {specs['consumo']}\n"
+            
+            soluciones.append(Solucion(
+                titulo=f"⚙️ Especificaciones {auto_nombre}",
+                descripcion=descripcion,
+                ventajas=["Información técnica", "Comparativa"],
+                desventajas=[],
+                complejidad=ComplexityLevel.BAJA,
+                categoria=SolutionCategory.PERSONAL,
+                recomendacion="Compara con otros modelos similares.",
+                tecnologias=["Web"]
+            ))
+        
+        if not soluciones:
+            soluciones.append(Solucion(
+                titulo=f"🚗 Información de {auto_nombre}",
+                descripcion="Buscando información...",
+                ventajas=[],
+                desventajas=[],
+                complejidad=ComplexityLevel.BAJA,
+                categoria=SolutionCategory.PERSONAL,
+                recomendacion="Intenta más tarde.",
+                tecnologias=["Web"]
+            ))
+        
+        return soluciones
     
     def _crear_soluciones_desde_rag(
         self, 

@@ -524,6 +524,59 @@ async def generar_respuesta_asesor(data: dict) -> dict:
 
 
 # ====================
+# Webhook para n8n
+# ====================
+
+from infrastructure.web_client import get_web_client
+
+
+@router.get("/webhook/n8n")
+async def webhook_n8n_get(marca: str = "", modelo: str = "", anio: str = ""):
+    """Webhook GET para n8n - Ejemplo: /api/v1/webhook/n8n?marca=toyota&modelo=corolla"""
+    if not marca and not modelo:
+        return {"error": "Se requiere marca o modelo", "ejemplo": "/api/v1/webhook/n8n?marca=toyota&modelo=corolla"}
+    
+    web_client = get_web_client()
+    resultado = web_client.buscar_precios_auto(marca, modelo, anio)
+    
+    return {
+        "status": "success",
+        "marca": marca,
+        "modelo": modelo,
+        "anio": anio,
+        "fuente": "https://serpapi.com/search",
+        "precios_nuevos": resultado.get("precios_nuevos", []),
+        "precios_usados": resultado.get("precios_usados", []),
+        "especificaciones": resultado.get("especificaciones", {}),
+    }
+
+
+@router.post("/webhook/n8n")
+async def webhook_n8n_post(data: dict):
+    """Webhook POST para n8n - Body: {"marca": "toyota", "modelo": "corolla"}"""
+    marca = data.get("marca", "")
+    modelo = data.get("modelo", "")
+    anio = data.get("anio", "")
+    
+    if not marca and not modelo:
+        return {"error": "Se requiere marca o modelo"}
+    
+    web_client = get_web_client()
+    resultado = web_client.buscar_precios_auto(marca, modelo, anio)
+    
+    return {
+        "status": "success",
+        "marca": marca,
+        "modelo": modelo,
+        "anio": anio,
+        "fuente": "https://serpapi.com/search",
+        "precios_nuevos": resultado.get("precios_nuevos", []),
+        "precios_usados": resultado.get("precios_usados", []),
+        "especificaciones": resultado.get("especificaciones", {}),
+    }
+
+
+# ====================
 # Endpoint principal del agente
 # ====================
 
