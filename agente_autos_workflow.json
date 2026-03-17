@@ -1,0 +1,128 @@
+{
+  "name": "Agente de Autos con RAG",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://agente-autos1.onrender.com/precio",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "marca",
+              "value": "toyota"
+            },
+            {
+              "name": "modelo",
+              "value": "corolla"
+            }
+          ]
+        }
+      },
+      "id": "http_request",
+      "name": "Obtener Precio Auto",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [500, 300],
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "marca",
+              "value": "={{ $json.marca }}"
+            },
+            {
+              "name": "modelo",
+              "value": "={{ $json.modelo }}"
+            },
+            {
+              "name": "precio_nuevo",
+              "value": "={{ $json.precios_nuevos[0].precio }}"
+            },
+            {
+              "name": "precio_usado",
+              "value": "={{ $json.precios_usados[0].precio }}"
+            },
+            {
+              "name": "fuente",
+              "value": "={{ $json.fuente }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set_data",
+      "name": "Extraer Datos",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "webhookUri": "",
+        "text": "🚗 *Precio del Auto*\n\n*Marca:* {{ $json.marca }}\n*Modelo:* {{ $json.modelo }}\n\n💰 *Precio Nuevo:* {{ $json.precio_nuevo }}\n🔧 *Precio Usado:* {{ $json.precio_usado }}\n\n📡 *Fuente:* {{ $json.fuente }}",
+        "additionalFields": {}
+      },
+      "id": "slack",
+      "name": "Enviar a Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 3.2,
+      "position": [1000, 300],
+      "credentials": {
+        "slackApi": ""
+      }
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Obtener Precio Auto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obtener Precio Auto": {
+      "main": [
+        [
+          {
+            "node": "Extraer Datos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer Datos": {
+      "main": [
+        [
+          {
+            "node": "Enviar a Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {},
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2024-01-01T00:00:00.000Z",
+  "versionId": "1"
+}
