@@ -1,0 +1,36 @@
+{
+  "nodes": [
+    {
+      "name": "Agente de Autos",
+      "node": "n8n-nodes-base.httpRequest",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [250, 300],
+      "parameters": {
+        "url": "https://agente-autos1.onrender.com/precio",
+        "method": "GET",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "marca",
+              "value": "={{ $json.marca }}"
+            },
+            {
+              "name": "modelo", 
+              "value": "={{ $json.modelo }}"
+            },
+            {
+              "name": "anio",
+              "value": "={{ $json.anio }}"
+            }
+          ]
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": []
+      }
+    }
+  ],
+  "connections": {}
+}

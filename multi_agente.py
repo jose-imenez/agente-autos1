@@ -228,6 +228,7 @@ class AgenteOrquestador:
                 ConsultaAuto(marca=self._extraer_marca(texto_lower), 
                            modelo=self._extraer_modelo(texto_lower),
                            anio=self._extraer_anio(texto))
+            )
         
         else:
             # Por defecto, agente de precios
@@ -235,6 +236,7 @@ class AgenteOrquestador:
                 ConsultaAuto(marca=self._extraer_marca(texto_lower),
                            modelo=self._extraer_modelo(texto_lower),
                            anio=self._extraer_anio(texto))
+            )
     
     def _extraer_marca(self, texto: str) -> str:
         marcas = ["toyota", "honda", "nissan", "ford", "chevrolet", "kia", "hyundai", "mazda", "volkswagen", "bmw", "mercedes", "audi", "porsche", "tesla", "jeep"]
